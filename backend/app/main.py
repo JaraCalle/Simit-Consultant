@@ -6,7 +6,7 @@ from app.core.config import settings
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    openapi_url=f"{settings.API_STR}/openapi.json"
+    openapi_url=f"{settings.API_STR}/openapi.json",
 )
 
 app.add_middleware(
@@ -22,8 +22,8 @@ app.add_middleware(
 async def root():
     return {
         "message": "Bienvenido a la API de consulta por placas en el SIMIT",
-        "version": settings.VERSION
-        }
+        "version": settings.VERSION,
+    }
 
 
 @app.get("/health")
