@@ -3,13 +3,19 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "Simit Consultant"
+name = "simit-consultant"
 version = "0.1.0"
 description = "API Backend con FastAPI para la prueba técnica"
 authors = [
     {name = "Juan Jara", email = "jaracalle2041@gmail.com"}
 ]
 dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "requests",
 ]
 
 [project.optional-dependencies]
