@@ -1,39 +1,61 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
+from app.core.database import get_db
 from app.schemas.simit_schema import (
-    PlateRequest,
-    PlateResponse,
     BulkRequest,
     BulkResponse,
+    PlateRequest,
+    PlateResponse,
 )
 from app.services.simit_service import SIMITService
 
 router = APIRouter(
-    prefix="/simit",
-    tags=["SIMIT"],
+    prefix="/consultas",
+    tags=["Consultas"],
 )
-
-service = SIMITService()
 
 
 @router.post(
-    "/placa",
+    "",
     response_model=PlateResponse,
-    summary="Consultar una placa",
-    description="Retorna el estado de multas de una placa individual.",
+    status_code=201,
+    summary="Crear una consulta individual",
+    description="Consulta el estado de multas de una placa y persiste el resultado.",
 )
-async def get_plate(body: PlateRequest) -> PlateResponse:
-    return await service.consult_plate(body.placa)
+async def create_consulta(
+    body: PlateRequest,
+    db: Session = Depends(get_db),
+) -> PlateResponse:
+    return await SIMITService(db).consult_plate(body.placa)
 
 
 @router.post(
-    "/placas/bulk",
+    "/bulk",
     response_model=BulkResponse,
-    summary="Consultar múltiples placas en paralelo",
+    status_code=201,
+    summary="Crear consultas masivas en paralelo",
     description=(
-        "Recibe una lista de placas y consulta todas en paralelo. "
+        "Consulta múltiples placas en paralelo. "
         "Si una falla, retorna el error en ese item y continúa con las demás."
     ),
 )
-async def get_bulk_plates(body: BulkRequest) -> BulkResponse:
-    return await service.consult_bulk(body.placas)
+async def create_consultas_bulk(
+    body: BulkRequest,
+    db: Session = Depends(get_db),
+) -> BulkResponse:
+    return await SIMITService(db).consult_bulk(body.placas)
+
+
+@router.get(
+    "",
+    response_model=list[PlateResponse],
+    summary="Listar historial de consultas",
+    description="Retorna todas las consultas históricas realizadas con paginación.",
+)
+def get_consultas(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+) -> list[PlateResponse]:
+    return SIMITService(db).get_all(skip=skip, limit=limit)

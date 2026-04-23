@@ -1,7 +1,8 @@
 import re
-from datetime import datetime, date
-from pydantic import BaseModel, field_validator
+from datetime import date, datetime
 from typing import List, Optional
+
+from pydantic import BaseModel, field_validator
 
 # 3 letras + 2 dígitos + 1 carácter alfanumérico opcional
 PLATE_REGEX = re.compile(r"^[A-Z]{3}[0-9]{2}[A-Z0-9]?$")
@@ -13,7 +14,8 @@ def _validate_plate_format(plate: str) -> str:
     if not PLATE_REGEX.match(normalized):
         raise ValueError(
             f"'{plate}' no es una placa válida. "
-            "El formato esperado es 3 letras + 2 números + 1 alfanumérico opcional (ej: ABC12, ABC123)."
+            "El formato esperado es 3 letras + 2 números + 1 "
+            "alfanumérico opcional (ej: ABC12, ABC123)."
         )
     return normalized
 
@@ -33,9 +35,19 @@ class FinesResponse(BaseModel):
     estado: str
     fecha: date
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "FinesResponse":
+        return cls(
+            numero=str(data["numero"]),
+            valor=float(data["valor"]),
+            estado=str(data["estado"]),
+            fecha=date.fromisoformat(str(data["fecha"])),
+        )
+
 
 class PlateResponse(BaseModel):
     placa: str
+    tipoConsulta: str
     fechaConsulta: datetime
     estado: str
     cantidadMultas: int
