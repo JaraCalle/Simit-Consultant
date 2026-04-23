@@ -14,18 +14,7 @@ class Settings(BaseSettings):
     SIMIT_BASE: str = ""
     CAPTCHA_URL: str = ""
 
-    BACKEND_CORS_ORIGINS: List[str] = ['["*"]']
-
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    @classmethod
-    def validate_cors_origins(cls, v):
-        """Convierte string JSON a lista si es necesario"""
-        if isinstance(v, list):
-            return v
-        try:
-            return json.loads(v)
-        except json.JSONDecodeError:
-            return [item.strip() for item in v.split(",")]
+    BACKEND_CORS_ORIGINS: str = '["*"]'
 
     @property
     def cors_origins_list(self) -> List[str]:
