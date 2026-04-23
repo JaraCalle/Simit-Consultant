@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useConsultaController } from '../controllers/consults.controller'
-import { ErrorBox } from '../components/ErrorBox'
-import { SkeletonCard } from '../components/SkeletonCard'
-import { ResultCard } from '../components/ResultCard'
-import { BulkAccordion } from '../components/BulkAccordion'
+import { useConsultaController } from '@/modules/consults/controllers/consults.controller'
+import { ErrorBox } from '@/modules/consults/components/ErrorBox'
+import { SkeletonCard } from '@/modules/consults/components/SkeletonCard'
+import { ResultCard } from '@/modules/consults/components/ResultCard'
+import { BulkAccordion } from '@/modules/consults/components/BulkAccordion'
 
 type Tab = 'individual' | 'bulk'
 

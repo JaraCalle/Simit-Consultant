@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
-import { useConsultaController } from '../controllers/consults.controller'
-import { StatusBadge } from '../components/StatusBadge'
-import { FineCard } from '../components/FineCard'
-import { ErrorBox } from '../components/ErrorBox'
+import { useConsultaController } from '@/modules/consults/controllers/consults.controller'
+import { StatusBadge } from '@/modules/consults/components/StatusBadge'
+import { FineCard } from '@/modules/consults/components/FineCard'
+import { ErrorBox } from '@/modules/consults/components/ErrorBox'
 
 const LIMIT = 10
 

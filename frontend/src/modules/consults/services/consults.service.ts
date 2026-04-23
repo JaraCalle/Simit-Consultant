@@ -1,11 +1,11 @@
-import apiClient from '../../../lib/axios'
+import apiClient from '@/lib/axios'
 import axios from 'axios'
 import type {
   PlateRequestDTO,
   PlateResponseDTO,
   BulkRequestDTO,
   BulkResponseDTO,
-} from '../dto/consults.dto'
+} from '@/modules/consults/dto/consults.dto'
 
 function extractErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
