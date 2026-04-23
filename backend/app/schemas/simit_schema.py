@@ -2,7 +2,7 @@ import re
 from datetime import date, datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 # 3 letras + 2 dígitos + 1 carácter alfanumérico opcional
 PLATE_REGEX = re.compile(r"^[A-Z]{3}[0-9]{2}[A-Z0-9]?$")
@@ -57,25 +57,27 @@ class PlateResponse(BaseModel):
 
 class BulkRequest(BaseModel):
     placas: List[str]
+    placas_invalidas: List[str] = []
 
-    @field_validator("placas")
+    @field_validator("placas", mode="before")
     @classmethod
     def validate_plates(cls, v: List[str]) -> List[str]:
         if not v:
             raise ValueError("La lista de placas no puede estar vacía.")
+        return v
 
-        validated = []
-        errors = []
-        for plate in v:
+    @model_validator(mode="after")
+    def split_valid_invalid(self) -> "BulkRequest":
+        validas = []
+        invalidas = []
+        for plate in self.placas:
             try:
-                validated.append(_validate_plate_format(plate))
-            except ValueError as e:
-                errors.append(str(e))
-
-        if errors:
-            raise ValueError(f"Placas inválidas: {'; '.join(errors)}")
-
-        return validated
+                validas.append(_validate_plate_format(plate))
+            except ValueError:
+                invalidas.append(plate.strip().upper())
+        self.placas = validas
+        self.placas_invalidas = invalidas
+        return self
 
 
 class BulkResponse(BaseModel):
@@ -83,3 +85,4 @@ class BulkResponse(BaseModel):
     exitosas: int
     fallidas: int
     placas: List[PlateResponse]
+    placas_invalidas: List[str] = []

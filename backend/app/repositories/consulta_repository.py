@@ -32,7 +32,7 @@ class ConsultaRepository:
         self.db = db
 
     def get_all(self, skip: int = 0, limit: int = 100) -> List[Consultas]:
-        return self.db.query(Consultas).offset(skip).limit(limit).all()
+        return self.db.query(Consultas).order_by(Consultas.fecha.desc()).offset(skip).limit(limit).all()
 
     def create(self, dto: ConsultaCreateDTO) -> Consultas:
         db_consult = Consultas(

@@ -44,7 +44,7 @@ async def create_consultas_bulk(
     body: BulkRequest,
     db: Session = Depends(get_db),
 ) -> BulkResponse:
-    return await SIMITService(db).consult_bulk(body.placas)
+    return await SIMITService(db).consult_bulk(body.placas, body.placas_invalidas)
 
 
 @router.get(
