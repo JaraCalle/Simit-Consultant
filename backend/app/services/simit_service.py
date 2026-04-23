@@ -1,55 +1,63 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from typing import cast
 
 from app.integrations.simit_client import SIMITClient
+from app.models.consulta import Consultas
+from app.repositories.consulta_repository import ConsultaRepository, ConsultaCreateDTO
 from app.schemas.simit_schema import (
+    BulkResponse,
     FinesResponse,
     PlateResponse,
-    BulkResponse,
 )
+
+COLOMBIA_TZ = timezone(timedelta(hours=-5))
 
 
 class SIMITService:
 
-    async def consult_plate(self, plate: str) -> PlateResponse:
+    def __init__(self, db) -> None:
+        self.repository = ConsultaRepository(db)
+
+    # Consulta individual
+    async def consult_plate(self, plate: str, is_bulk: bool = False) -> PlateResponse:
         client = SIMITClient()
         try:
-            data = await client.consult(plate)
-
-            multas_raw = data.get("multas") or []
+            consult_data = await client.consult(plate)
+            multas_raw = consult_data.get("multas") or []
             fines_number = len(multas_raw)
-            status = "SIN_MULTAS" if fines_number == 0 else "CON_MULTAS"
             fines = [self._parse_fine(m) for m in multas_raw]
-
-            return PlateResponse(
-                placa=plate,
-                fechaConsulta=datetime.now(),
-                estado=status,
-                cantidadMultas=fines_number,
-                multas=fines,
-            )
-
+            status = "EXITOSO"
+            error = None
         except Exception as e:
-            return PlateResponse(
-                placa=plate,
-                fechaConsulta=datetime.now(),
-                estado="ERROR",
-                cantidadMultas=0,
-                multas=[],
-                error=str(e),
-            )
-
+            consult_data = None
+            status = "ERROR"
+            fines_number = 0
+            fines = []
+            error = str(e)
         finally:
             await client.close()
 
+        consult = self.repository.create(ConsultaCreateDTO(
+            plate=plate,
+            tipo="MASIVA" if is_bulk else "INDIVIDUAL",
+            status=status,
+            data=consult_data,
+            fines=[f.model_dump(mode="json") for f in fines],
+            fines_number=fines_number,
+            error=error,
+        ))
+
+        return self._to_response(consult)
+
+
+    # Consulta masiva
     async def consult_bulk(self, plates: list[str]) -> BulkResponse:
         results: list[PlateResponse] = await asyncio.gather(
-            *[self.consult_plate(plate) for plate in plates]
+            *[self.consult_plate(plate, is_bulk=True) for plate in plates]
         )
- 
         successful = sum(1 for r in results if r.error is None)
         failed = sum(1 for r in results if r.error is not None)
- 
         return BulkResponse(
             total=len(results),
             exitosas=successful,
@@ -57,24 +65,37 @@ class SIMITService:
             placas=results,
         )
 
+    # Historico
+    def get_all(self, skip: int = 0, limit: int = 100) -> list[PlateResponse]:
+        consultas = self.repository.get_all(skip=skip, limit=limit)
+        return [self._to_response(c) for c in consultas]
+
+    def _to_response(self, consult: Consultas) -> PlateResponse:
+        return PlateResponse(
+            placa=str(consult.placa),
+            tipoConsulta=str(consult.tipo),
+            fechaConsulta=datetime.fromisoformat(str(consult.fecha)).astimezone(
+                COLOMBIA_TZ
+            ),
+            estado=str(consult.estado),
+            cantidadMultas=int(str(consult.cantidad_multas or 0)),
+            multas=[
+                FinesResponse.from_dict(m)
+                for m in cast(list[dict], consult.multas or [])
+            ],
+            error=(
+                str(consult.mensaje_error)
+                if consult.mensaje_error is not None
+                else None
+            ),
+        )
+
     def _parse_fine(self, fine: dict) -> FinesResponse:
-        # Número identificador
-        number = (
-            fine.get("numeroComparendo")  # En comparendo activos
-            or fine.get("numeroResolucion")  # En resoluciones
-            or ""
-        )
-
-        # Valor a pagar
+        number = fine.get("numeroComparendo") or fine.get("numeroResolucion") or ""
         value = float(fine.get("valorPagar") or 0)
-
         status = (
-            fine.get("estadoComparendo")  # En comparendos activos
-            or fine.get("estadoCartera")  # En resoluciones
-            or "Desconocido"
+            fine.get("estadoComparendo") or fine.get("estadoCartera") or "Desconocido"
         )
-
-        # Fecha de la infracción
         raw_date = fine.get("fechaComparendo", "")
         try:
             date = datetime.strptime(raw_date.split(" ")[0], "%d/%m/%Y").date()
