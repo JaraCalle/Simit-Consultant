@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.api import simit
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -29,3 +30,6 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+app.include_router(simit.router, prefix=f"{settings.API_STR}")

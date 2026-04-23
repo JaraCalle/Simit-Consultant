@@ -1,7 +1,12 @@
+import asyncio
 from datetime import datetime
 
 from app.integrations.simit_client import SIMITClient
-from app.schemas.simit_schema import FinesResponse, PlateResponse
+from app.schemas.simit_schema import (
+    FinesResponse,
+    PlateResponse,
+    BulkResponse,
+)
 
 
 class SIMITService:
@@ -14,15 +19,14 @@ class SIMITService:
             multas_raw = data.get("multas") or []
             fines_number = len(multas_raw)
             status = "SIN_MULTAS" if fines_number == 0 else "CON_MULTAS"
-
-            multas = [self._parse_fine(m) for m in multas_raw]
+            fines = [self._parse_fine(m) for m in multas_raw]
 
             return PlateResponse(
                 placa=plate,
                 fechaConsulta=datetime.now(),
                 estado=status,
                 cantidadMultas=fines_number,
-                multas=multas,
+                multas=fines,
             )
 
         except Exception as e:
@@ -37,6 +41,21 @@ class SIMITService:
 
         finally:
             await client.close()
+
+    async def consult_bulk(self, plates: list[str]) -> BulkResponse:
+        results: list[PlateResponse] = await asyncio.gather(
+            *[self.consult_plate(plate) for plate in plates]
+        )
+ 
+        successful = sum(1 for r in results if r.error is None)
+        failed = sum(1 for r in results if r.error is not None)
+ 
+        return BulkResponse(
+            total=len(results),
+            exitosas=successful,
+            fallidas=failed,
+            placas=results,
+        )
 
     def _parse_fine(self, fine: dict) -> FinesResponse:
         # Número identificador

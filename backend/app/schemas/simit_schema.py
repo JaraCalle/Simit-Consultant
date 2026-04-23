@@ -29,4 +29,7 @@ class BulkRequest(BaseModel):
 
 
 class BulkResponse(BaseModel):
+    total: int
+    exitosas: int
+    fallidas: int
     placas: List[PlateResponse]
