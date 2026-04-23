@@ -69,19 +69,28 @@ class SIMITClient:
 
     async def consult(self, plate: str) -> dict:
         plate = plate.strip().upper()
-
         captcha = await self._solve_captcha()
-
         payload = {
             "filtro": plate,
             "reCaptchaDTO": captcha,
         }
+        try:
+            resp = await self.client.post(
+                f"{settings.SIMIT_BASE}/consulta",
+                json=payload,
+                timeout=30,
+            )
+        except httpx.TimeoutException:
+            raise RuntimeError("SIMIT no respondió en el tiempo esperado. Intenta más tarde.")
+        except httpx.RequestError as e:
+            raise RuntimeError(f"Error de conexión con SIMIT: {e}")
 
-        resp = await self.client.post(
-            f"{settings.SIMIT_BASE}/consulta",
-            json=payload,
-            timeout=15,
-        )
+        if resp.status_code == 500:
+            try:
+                msg = resp.json().get("descripcion", "Error interno del servidor SIMIT")
+            except Exception:
+                msg = "Error interno del servidor SIMIT"
+            raise RuntimeError(msg)
 
         resp.raise_for_status()
         return resp.json()
