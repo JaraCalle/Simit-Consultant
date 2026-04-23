@@ -52,12 +52,25 @@ class SIMITService:
 
 
     # Consulta masiva
-    async def consult_bulk(self, plates: list[str]) -> BulkResponse:
-        results: list[PlateResponse] = await asyncio.gather(
+    async def consult_bulk(self, plates: list[str], invalid_plates: list[str] = []) -> BulkResponse:
+        results: list[PlateResponse] = list(await asyncio.gather(
             *[self.consult_plate(plate, is_bulk=True) for plate in plates]
-        )
+        ))
+
+        for plate in invalid_plates:
+            results.append(PlateResponse(
+                placa=plate,
+                tipoConsulta="MASIVA",
+                fechaConsulta=datetime.now(tz=COLOMBIA_TZ),
+                estado="FORMATO_INVALIDO",
+                cantidadMultas=0,
+                multas=[],
+                error=f"Formato de placa inválido. Se esperan 3 letras + 2 números + 1 alfanumérico opcional (ej: ABC12, ABC123)",
+            ))
+
         successful = sum(1 for r in results if r.error is None)
-        failed = sum(1 for r in results if r.error is not None)
+        failed = len(results) - successful
+
         return BulkResponse(
             total=len(results),
             exitosas=successful,
