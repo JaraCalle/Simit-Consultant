@@ -4,6 +4,9 @@
 > 
 > *Juan José Jara Calle*
 
+**Link de la API**: https://simit-consultant.vercel.app/docs
+**Link de la web**: https://simit-consultant-zc1y.vercel.app/
+
 ---
 
 ## Tabla de Contenidos
@@ -13,6 +16,8 @@
 - [Decisiones Técnicas](#decisiones-técnicas)
 - [Limitaciones Encontradas](#limitaciones-encontradas)
 - [Mejoras Futuras](#mejoras-futuras)
+- [Script de Base de Datos](#script-de-base-de-datos)
+- [Colección Postman](#colección-postman)
 
 ---
 
@@ -27,7 +32,6 @@
 > Ver diagrama de entidad en la [Wiki — Diagramas](https://github.com/JaraCalle/Simit-Consultant/wiki/Diagramas#entidad-base-de-datos)
 
 ### Solución al Problema de Ingeniería Inversa SIMIT
-Las fotos del paso a paso las puse en la Wiki de este repositorio, puedes ir a comprobarlas allá. [Wiki - Pruebas del paso a paso](https://github.com/JaraCalle/Simit-Consultant/wiki/Soluci%C3%B3n-Problema-de-Ingenier%C3%ADa-Inversa-SIMIT)
 
 El SIMIT como aplicación no expone una API pública para consumo. Las opciones más comunes para consultar sus datos implican pagar una API de terceros. Ante este reto, se realizó ingeniería inversa a la página [SIMIT](https://www.fcm.org.co/simit/#/estado-cuenta) mediante los siguientes pasos:
 
@@ -148,3 +152,135 @@ Como mitigación, se implementó **concurrencia** para las consultas masivas, bu
 - **Pool de hilos:** Aunque ya se implementó asincronismo, agregar un pool de hilos para las consultas masivas podría optimizar aún más los tiempos de carga para múltiples consultas simultáneas.
 
 - **Normalización de base de datos:** Es necesario normalizar y extraer más tablas. Por ejemplo, los campos `multas`, `estado` y `tipo consulta` pueden convertirse en tablas independientes, aplicando una correcta normalización y estandarización de los datos.
+
+---
+
+## Script de Base de Datos
+
+Script SQL para crear la tabla principal del sistema en PostgreSQL:
+
+```sql
+CREATE TABLE public."Consultas" (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    placa VARCHAR(6) NOT NULL,
+    fecha TIMESTAMP WITH TIME ZONE NOT NULL,
+    tipo VARCHAR NOT NULL,
+    estado VARCHAR NOT NULL,
+    respuesta_cruda JSONB,
+    cantidad_multas INTEGER,
+    mensaje_error VARCHAR,
+    multas JSONB
+);
+```
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | `UUID` | Identificador único generado automáticamente |
+| `placa` | `VARCHAR(6)` | Placa consultada (máx. 6 caracteres) |
+| `fecha` | `TIMESTAMP WITH TIME ZONE` | Fecha y hora de la consulta |
+| `tipo` | `VARCHAR` | Tipo de consulta realizada |
+| `estado` | `VARCHAR` | Estado del resultado (`SIN_MULTAS`, `CON_MULTAS`, `ERROR`) |
+| `respuesta_cruda` | `JSONB` | Respuesta completa sin procesar del SIMIT |
+| `cantidad_multas` | `INTEGER` | Número de multas encontradas |
+| `mensaje_error` | `VARCHAR` | Mensaje de error en caso de fallo |
+| `multas` | `JSONB` | Detalle estructurado de las multas encontradas |
+
+---
+
+## Colección Postman
+
+La colección está disponible en el archivo [`SIMIT_API_Consultas.json`](./SIMIT_API_Consultas.json) en la raíz del repositorio. Impórtala directamente en Postman para probar todos los endpoints. De igual forma, tambien puedes probar toda la api desde [Vercel app](https://simit-consultant.vercel.app/docs)
+
+**Variable de entorno:**
+
+| Variable | Valor por defecto |
+|---|---|
+| `base_url` | `http://localhost:8000` |
+
+### Endpoints disponibles
+
+#### `POST /consultas` — Consulta individual
+
+Consulta el estado de multas de una placa y persiste el resultado.
+
+**Request body:**
+```json
+{
+  "placa": "ABC123"
+}
+```
+
+**Validación:** La placa debe tener formato de 3 letras + 2 números + 1 alfanumérico opcional (ej: `ABC12`, `ABC123`). Las placas con formato inválido retornan `422 Unprocessable Entity`.
+
+**Respuesta exitosa (`201 Created`):**
+```json
+{
+  "placa": "ABC123",
+  "tipoConsulta": "SIMIT",
+  "fechaConsulta": "2024-01-15T10:30:00Z",
+  "estado": "CON_MULTAS",
+  "cantidadMultas": 2,
+  "multas": [
+    { "numero": "12345", "valor": 150000.0, "estado": "PENDIENTE", "fecha": "2023-12-01" },
+    { "numero": "67890", "valor": 300000.0, "estado": "PENDIENTE", "fecha": "2023-11-15" }
+  ],
+  "error": null
+}
+```
+
+---
+
+#### `POST /consultas/bulk` — Consultas masivas
+
+Consulta múltiples placas en paralelo. Las placas inválidas se separan automáticamente en el campo `placas_invalidas`. Si una consulta válida falla, el error queda registrado en ese ítem.
+
+**Request body:**
+```json
+{
+  "placas": ["ABC123", "XYZ99", "DEF456", "INVALIDA", "GHI78A"]
+}
+```
+
+**Respuesta exitosa (`201 Created`):**
+```json
+{
+  "total": 4,
+  "exitosas": 3,
+  "fallidas": 1,
+  "placas": [
+    { "placa": "ABC123", "estado": "SIN_MULTAS", "cantidadMultas": 0, "multas": [], "error": null },
+    { "placa": "XYZ99",  "estado": "CON_MULTAS", "cantidadMultas": 1, "multas": [...], "error": null },
+    { "placa": "DEF456", "estado": "ERROR",       "cantidadMultas": 0, "multas": [], "error": "Timeout al consultar el servicio SIMIT" },
+    { "placa": "GHI78A", "estado": "SIN_MULTAS", "cantidadMultas": 0, "multas": [], "error": null }
+  ],
+  "placas_invalidas": ["QCK77G"]
+}
+```
+
+---
+
+#### `GET /consultas` — Historial de consultas
+
+Retorna todas las consultas históricas con paginación.
+
+| Query param | Tipo | Descripción |
+|---|---|---|
+| `skip` | `integer` | Registros a omitir (por defecto `0`) |
+| `limit` | `integer` | Máximo de registros a retornar (por defecto `100`) |
+
+**Ejemplo:** `GET /consultas?skip=0&limit=100`
+
+**Respuesta exitosa (`200 OK`):**
+```json
+[
+  {
+    "placa": "ABC123",
+    "tipoConsulta": "SIMIT",
+    "fechaConsulta": "2024-01-15T10:30:00Z",
+    "estado": "CON_MULTAS",
+    "cantidadMultas": 1,
+    "multas": [{ "numero": "99999", "valor": 200000.0, "estado": "PAGADA", "fecha": "2023-09-10" }],
+    "error": null
+  }
+]
+```
