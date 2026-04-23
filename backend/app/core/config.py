@@ -1,8 +1,9 @@
 # External imports
 import json
+from typing import List
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
-from typing import List
 
 
 class Settings(BaseSettings):
@@ -10,7 +11,8 @@ class Settings(BaseSettings):
     VERSION: str = "0.1.0"
     API_STR: str = "/api"
     POSTGRES_URL: str = ""
-    SIMIT_URL: str = ""
+    SIMIT_BASE: str = ""
+    CAPTCHA_URL: str = ""
 
     BACKEND_CORS_ORIGINS: List[str] = ['["*"]']
 
