@@ -12,9 +12,18 @@ function extractErrorMessage(err: unknown): string {
     const data = err.response?.data
 
     if (err.response?.status === 422 && Array.isArray(data?.detail)) {
-      return data.detail
+      const msg = data.detail
         .map((d: { msg: string }) => d.msg.replace(/^Value error,\s*/i, '').trim())
-        .join('\n')
+        .join(' ')
+
+      const matches = [...msg.matchAll(/'([^']+)' no es una placa válida/g)]
+
+      if (matches.length > 0) {
+        const placas = matches.map(m => m[1])
+        return `Placas con formato inválido:\n${placas.map(p => `  · ${p}`).join('\n')}\n\nFormato esperado: 3 letras + 2 números + 1 alfanumérico opcional (ej: ABC12, ABC123)`
+      }
+
+      return msg
     }
 
     if (typeof data?.detail === 'string') return data.detail

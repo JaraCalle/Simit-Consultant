@@ -11,6 +11,8 @@ export function useConsultaController() {
   const [bulkResultado, setBulkResultado] = useState<BulkResponseDTO | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
+  const LIMIT = 10
 
   async function consultarPlaca(placa: string) {
     setLoading(true)
@@ -38,12 +40,13 @@ export function useConsultaController() {
     }
   }
 
-  async function cargarHistorial(skip = 0, limit = 100) {
+  async function cargarHistorial(skip = 0) {
     setLoading(true)
     setError(null)
     try {
-      const data = await ConsultasService.getHistorial(skip, limit)
+      const data = await ConsultasService.getHistorial(skip, LIMIT)
       setHistorial(data)
+      setPage(skip / LIMIT)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error desconocido')
     } finally {
@@ -57,6 +60,8 @@ export function useConsultaController() {
     bulkResultado,
     loading,
     error,
+    page,
+    LIMIT,
     consultarPlaca,
     consultarBulk,
     cargarHistorial,

@@ -1,42 +1,55 @@
 import { useState } from 'react'
 import { useConsultaController } from '../controllers/consults.controller'
+import { ErrorBox } from '../components/ErrorBox'
+import { SkeletonCard } from '../components/SkeletonCard'
+import { ResultCard } from '../components/ResultCard'
+import { BulkAccordion } from '../components/BulkAccordion'
 
 type Tab = 'individual' | 'bulk'
 
 export default function ConsultaPage() {
   const [tab, setTab] = useState<Tab>('individual')
-
-  // Individual
   const [placa, setPlaca] = useState('')
-
-  // Bulk
   const [placasInput, setPlacasInput] = useState('')
 
   const { resultado, bulkResultado, loading, error, consultarPlaca, consultarBulk } =
     useConsultaController()
 
+  const bulkPlacas = placasInput
+    .split(',')
+    .map(p => p.trim())
+    .filter(p => p.length > 0)
+
   function handleBulk() {
-    const placas = placasInput
-      .split(',')
-      .map(p => p.trim().toUpperCase())
-      .filter(p => p.length > 0)
-    consultarBulk(placas)
+    consultarBulk(bulkPlacas.map(p => p.toUpperCase()))
   }
 
   return (
-    <main className="p-8 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Consultar placas</h1>
+    <main className="p-8 max-w-2xl mx-auto font-sans">
+
+      {/* Header */}
+      <div className="flex items-start justify-between mb-10 pb-6 border-b border-gray-100">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400 mb-1">
+            Sistema de infracciones
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Consulta de placas</h1>
+        </div>
+        <span className="font-mono text-[10px] bg-amber-50 text-amber-900 border border-amber-200 px-3 py-1.5 rounded-full">
+          SIMIT · CO
+        </span>
+      </div>
 
       {/* Tabs */}
-      <div className="flex border-b mb-6">
+      <div className="flex border-b border-gray-100 mb-8">
         {(['individual', 'bulk'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-6 py-2 text-sm font-medium capitalize border-b-2 transition-colors ${
+            className={`font-mono text-[11px] uppercase tracking-widest px-5 py-2.5 border-b-2 -mb-px transition-colors ${
               tab === t
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-amber-500 text-amber-700'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
             {t === 'individual' ? 'Individual' : 'Masiva'}
@@ -44,25 +57,22 @@ export default function ConsultaPage() {
         ))}
       </div>
 
-      {/* Errores */}
-      {error && (
-        <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-600 whitespace-pre-line">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBox message={error} />}
 
-      {/* ── TAB INDIVIDUAL ── */}
+      {/* Tab individual */}
       {tab === 'individual' && (
         <>
           <div className="flex gap-2 mb-6">
             <input
-              className="border rounded px-3 py-2 flex-1 uppercase"
-              placeholder="ABC123"
+              className="flex-1 font-mono text-lg font-medium tracking-widest uppercase px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 bg-white placeholder:text-gray-300 placeholder:text-sm placeholder:font-normal placeholder:tracking-normal transition-colors"
+              placeholder="ABC 123"
               value={placa}
+              maxLength={7}
               onChange={e => setPlaca(e.target.value.toUpperCase())}
+              onKeyDown={e => e.key === 'Enter' && !loading && placa && consultarPlaca(placa)}
             />
             <button
-              className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+              className="font-mono text-[11px] uppercase tracking-widest px-5 py-3 bg-gray-900 text-white rounded-lg disabled:opacity-30 hover:bg-gray-700 active:scale-95 transition-all whitespace-nowrap"
               disabled={loading || !placa}
               onClick={() => consultarPlaca(placa)}
             >
@@ -70,68 +80,33 @@ export default function ConsultaPage() {
             </button>
           </div>
 
-          {resultado && (
-            <div className="border rounded p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <Field label="Placa" value={resultado.placa} />
-                <Field label="Tipo de consulta" value={resultado.tipoConsulta} />
-                <Field
-                  label="Fecha de consulta"
-                  value={new Date(resultado.fechaConsulta).toLocaleString('es-CO', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}
-                />
-                <Field
-                  label="Estado"
-                  value={resultado.estado}
-                  className={resultado.estado === 'EXITOSO' ? 'text-green-600' : 'text-red-500'}
-                />
-                <Field label="Cantidad de multas" value={String(resultado.cantidadMultas)} />
-                {resultado.error && (
-                  <div className="col-span-2">
-                    <Field label="Error" value={resultado.error} className="text-red-500" />
-                  </div>
-                )}
-              </div>
-
-              {resultado.multas.length > 0 && (
-                <div className="space-y-2">
-                  <p className="font-semibold text-sm text-gray-700">Multas</p>
-                  {resultado.multas.map(m => (
-                    <FineCard key={m.numero} multa={m} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {loading && <SkeletonCard />}
+          {!loading && resultado && <ResultCard resultado={resultado} />}
         </>
       )}
 
-      {/* ── TAB BULK ── */}
+      {/* Tab bulk */}
       {tab === 'bulk' && (
         <>
           <div className="mb-2">
-            <label className="text-sm text-gray-600 mb-1 block">
-              Ingresa las placas separadas por coma
+            <label className="font-mono text-[10px] uppercase tracking-widest text-gray-400 mb-2 block">
+              Placas separadas por coma
             </label>
             <textarea
-              className="border rounded px-3 py-2 w-full uppercase resize-none"
+              className="w-full font-mono text-sm uppercase tracking-widest px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 resize-none bg-white transition-colors leading-loose"
               rows={3}
               placeholder="ABC123, QCK77G, XYZ987"
               value={placasInput}
               onChange={e => setPlacasInput(e.target.value.toUpperCase())}
             />
           </div>
+
           <div className="flex justify-between items-center mb-6">
-            <p className="text-xs text-gray-400">
-              {placasInput
-                .split(',')
-                .map(p => p.trim())
-                .filter(p => p.length > 0).length} placa(s) detectada(s)
+            <p className="font-mono text-[11px] text-gray-400">
+              <span className="text-amber-700 font-medium">{bulkPlacas.length}</span> placa(s) detectada(s)
             </p>
             <button
-              className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+              className="font-mono text-[11px] uppercase tracking-widest px-5 py-3 bg-gray-900 text-white rounded-lg disabled:opacity-30 hover:bg-gray-700 active:scale-95 transition-all"
               disabled={loading || !placasInput.trim()}
               onClick={handleBulk}
             >
@@ -139,53 +114,28 @@ export default function ConsultaPage() {
             </button>
           </div>
 
-          {bulkResultado && (
+          {loading && <SkeletonCard />}
+
+          {!loading && bulkResultado && (
             <div className="space-y-4">
               {/* Resumen */}
-              <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                <div className="border rounded p-3">
-                  <p className="text-gray-500">Total</p>
-                  <p className="text-xl font-bold">{bulkResultado.total}</p>
-                </div>
-                <div className="border rounded p-3">
-                  <p className="text-gray-500">Exitosas</p>
-                  <p className="text-xl font-bold text-green-600">{bulkResultado.exitosas}</p>
-                </div>
-                <div className="border rounded p-3">
-                  <p className="text-gray-500">Fallidas</p>
-                  <p className="text-xl font-bold text-red-500">{bulkResultado.fallidas}</p>
-                </div>
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {[
+                  { label: 'Total', value: bulkResultado.total, color: '' },
+                  { label: 'Exitosas', value: bulkResultado.exitosas, color: 'text-green-700' },
+                  { label: 'Fallidas', value: bulkResultado.fallidas, color: 'text-red-700' },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="bg-gray-50 rounded-lg p-4 text-center">
+                    <p className={`font-mono text-3xl font-medium ${color || 'text-gray-900'}`}>{value}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-gray-400 mt-1">{label}</p>
+                  </div>
+                ))}
               </div>
 
-              {/* Resultados por placa */}
-              <div className="space-y-3">
+              {/* Acordeones */}
+              <div className="space-y-2">
                 {bulkResultado.placas.map(r => (
-                  <details key={r.placa} className="border rounded">
-                    <summary className="flex justify-between items-center px-4 py-3 cursor-pointer select-none">
-                      <span className="font-semibold">{r.placa}</span>
-                      <span className="text-sm text-gray-500">{r.tipoConsulta}</span>
-                      <span className="text-sm">{r.cantidadMultas} multa(s)</span>
-                      <span className={`text-sm font-medium ${r.estado === 'EXITOSO' ? 'text-green-600' : 'text-red-500'}`}>
-                        {r.estado}
-                      </span>
-                    </summary>
-                    <div className="px-4 pb-4 space-y-2 border-t pt-3">
-                      <div className="grid grid-cols-2 gap-2 text-sm mb-2">
-                        <Field
-                          label="Fecha de consulta"
-                          value={new Date(r.fechaConsulta).toLocaleString('es-CO', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
-                        />
-                        {r.error && <Field label="Error" value={r.error} className="text-red-500" />}
-                      </div>
-                      {r.multas.length > 0
-                        ? r.multas.map(m => <FineCard key={m.numero} multa={m} />)
-                        : <p className="text-sm text-gray-400">Sin multas registradas.</p>
-                      }
-                    </div>
-                  </details>
+                  <BulkAccordion key={r.placa} r={r} />
                 ))}
               </div>
             </div>
@@ -193,55 +143,5 @@ export default function ConsultaPage() {
         </>
       )}
     </main>
-  )
-}
-
-// ── Componentes internos ──
-
-function Field({
-  label,
-  value,
-  className = '',
-}: {
-  label: string
-  value: string
-  className?: string
-}) {
-  return (
-    <div>
-      <p className="text-gray-500 text-xs">{label}</p>
-      <p className={`font-semibold text-sm ${className}`}>{value}</p>
-    </div>
-  )
-}
-
-function FineCard({ multa }: { multa: { numero: string; estado: string; valor: number; fecha: string } }) {
-  return (
-    <div className="bg-gray-50 rounded p-3 text-sm grid grid-cols-2 gap-1">
-      <div>
-        <p className="text-gray-500">Número</p>
-        <p className="font-medium break-all">{multa.numero}</p>
-      </div>
-      <div>
-        <p className="text-gray-500">Estado</p>
-        <p className="font-medium">{multa.estado}</p>
-      </div>
-      <div>
-        <p className="text-gray-500">Valor a pagar</p>
-        <p className="font-medium">
-          {multa.valor.toLocaleString('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            maximumFractionDigits: 0,
-          })}
-        </p>
-      </div>
-      <div>
-        <p className="text-gray-500">Fecha infracción</p>
-        <p className="font-medium">
-          {new Date(multa.fecha).toLocaleDateString('es-CO', { dateStyle: 'medium' })}
-        </p>
-      </div>
-    </div>
   )
 }
