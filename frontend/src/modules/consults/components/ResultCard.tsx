@@ -1,7 +1,7 @@
 import { StatusBadge } from './StatusBadge'
 import { MetaField } from './MetaField'
 import { FineCard } from './FineCard'
-import type { PlateResponseDTO } from '../dto/consults.dto'
+import type { PlateResponseDTO } from '@/modules/consults/dto/consults.dto'
 
 export function ResultCard({ resultado }: { resultado: PlateResponseDTO }) {
   return (

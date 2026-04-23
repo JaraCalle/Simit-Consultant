@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import ConsultasService from '../services/consults.service'
+import ConsultasService from '@/modules/consults/services/consults.service'
 import type {
   PlateResponseDTO,
   BulkResponseDTO,
-} from '../dto/consults.dto'
+} from '@/modules/consults/dto/consults.dto'
 
 export function useConsultaController() {
   const [resultado, setResultado] = useState<PlateResponseDTO | null>(null)

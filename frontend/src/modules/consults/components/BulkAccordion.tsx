@@ -1,6 +1,6 @@
-import { StatusBadge } from './StatusBadge'
+import { StatusBadge } from '@/modules/consults/components/StatusBadge'
 import { FineCard } from './FineCard'
-import type { PlateResponseDTO } from '../dto/consults.dto'
+import type { PlateResponseDTO } from '@/modules/consults/dto/consults.dto'
 
 export function BulkAccordion({ r }: { r: PlateResponseDTO }) {
   return (
